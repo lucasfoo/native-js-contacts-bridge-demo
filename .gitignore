@@ -1,0 +1,33 @@
+# Dependencies
+web/node_modules/
+
+# Build output
+web/dist/
+
+# Xcode user data
+native/**/*.xcodeproj/xcuserdata/
+native/**/*.xcodeproj/project.xcworkspace/xcuserdata/
+native/**/*.xcuserstate
+
+# Xcode build
+native/**/DerivedData/
+native/**/build/
+
+# macOS
+.DS_Store
+
+# Environment
+.env
+.env.local
+
+# Wrangler
+.wrangler/
+.dev.vars
+
+# Editor
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
