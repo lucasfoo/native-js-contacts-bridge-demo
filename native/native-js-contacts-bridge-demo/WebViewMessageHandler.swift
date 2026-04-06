@@ -43,6 +43,50 @@ class ContactsMessageDelegate: MessageHandlerDelegate {
     }
 }
 
+class OptimizedContactsMessageDelegate: MessageHandlerDelegate {
+    private let service = OptimizedContactsService()
+
+    func registeredHandlerNames() -> [String] {
+        ["searchContacts"]
+    }
+
+    func handleMessage(name: String, body: Any) async -> (Any?, String?) {
+        guard name == "searchContacts" else { return (nil, "Unknown handler: \(name)") }
+
+        let params = body as? [String: Any] ?? [:]
+        let query = params["query"] as? String
+        let offset = params["offset"] as? Int ?? 0
+        let limit = params["limit"] as? Int ?? 100
+
+        let service = self.service
+        return await Task.detached {
+            let totalStart = CFAbsoluteTimeGetCurrent()
+
+            let (granted, authMs) = await service.requestAccess()
+            guard granted else { return (nil as Any?, "Contacts access denied") }
+
+            do {
+                let (contacts, total, fetchMs) = try await service.search(query: query, offset: offset, limit: limit)
+                let totalMs = (CFAbsoluteTimeGetCurrent() - totalStart) * 1000
+
+                let timing: [String: Any] = [
+                    "authMs": round(authMs * 10) / 10,
+                    "fetchMs": round(fetchMs * 10) / 10,
+                    "totalNativeMs": round(totalMs * 10) / 10
+                ]
+                let result: [String: Any] = [
+                    "contacts": contacts,
+                    "total": total,
+                    "timing": timing
+                ]
+                return (result, nil)
+            } catch {
+                return (nil, error.localizedDescription)
+            }
+        }.value
+    }
+}
+
 class StressTestMessageDelegate: MessageHandlerDelegate {
     private let service = StressTestService()
 

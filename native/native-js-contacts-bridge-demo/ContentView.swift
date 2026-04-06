@@ -32,6 +32,7 @@ struct WebView: UIViewRepresentable {
             handler = WebViewMessageHandler()
             handler.addDelegate(ContactsMessageDelegate())
             handler.addDelegate(StressTestMessageDelegate())
+            handler.addDelegate(OptimizedContactsMessageDelegate())
         }
     }
 }
