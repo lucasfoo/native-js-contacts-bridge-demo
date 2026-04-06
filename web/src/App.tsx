@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from 're
 import ContactsPage from './ContactsPage'
 import ContactDetailPage from './ContactDetailPage'
 import StressTestControls from './StressTestControls'
+import OptimizedContactsPage from './OptimizedContactsPage'
 
 function Navbar() {
   const location = useLocation()
@@ -29,6 +30,9 @@ function Home() {
       <Link to="/contacts" style={{ color: '#007aff', fontSize: 18, display: 'block', marginBottom: 24 }}>
         View Contacts →
       </Link>
+      <Link to="/contacts-optimized" style={{ color: '#007aff', fontSize: 18, display: 'block', marginBottom: 24 }}>
+        View Contacts (Optimized) →
+      </Link>
       <StressTestControls />
     </div>
   )
@@ -42,6 +46,8 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/contacts" element={<ContactsPage />} />
         <Route path="/contacts/:index" element={<ContactDetailPage />} />
+        <Route path="/contacts-optimized" element={<OptimizedContactsPage />} />
+        <Route path="/contacts-optimized/:index" element={<ContactDetailPage />} />
       </Routes>
     </BrowserRouter>
   )
