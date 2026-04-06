@@ -19,6 +19,7 @@ function OptimizedContactsPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const currentQueryRef = useRef('')
+  const initialLoadRef = useRef(true)
 
   const fetchPage = useCallback(async (searchQuery: string, offset: number) => {
     const bridgeStart = performance.now()
@@ -49,7 +50,8 @@ function OptimizedContactsPage() {
         const renderMs = Math.round((performance.now() - bridgeMs) * 10) / 10
         setTiming({ ...result.timing, bridgeMs, renderMs })
       })
-    }, query === '' && contacts.length === 0 ? 0 : DEBOUNCE_MS)
+    }, initialLoadRef.current ? 0 : DEBOUNCE_MS)
+    initialLoadRef.current = false
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)

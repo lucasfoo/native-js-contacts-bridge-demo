@@ -24,6 +24,15 @@ declare global {
         getContacts: {
           postMessage: (body: unknown) => Promise<GetContactsResponse>
         }
+        searchContacts: {
+          postMessage: (body: import('./optimizedBridge').SearchContactsRequest) => Promise<import('./optimizedBridge').SearchContactsResponse>
+        }
+        generateContacts: {
+          postMessage: (body: { count: number; prefix: string }) => Promise<import('./stressTestBridge').GenerateResponse>
+        }
+        cleanupContacts: {
+          postMessage: (body: { prefix: string }) => Promise<import('./stressTestBridge').CleanupResponse>
+        }
       }
     }
   }

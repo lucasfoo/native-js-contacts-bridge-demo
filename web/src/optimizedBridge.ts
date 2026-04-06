@@ -15,18 +15,3 @@ export interface SearchContactsResponse {
     totalNativeMs: number
   }
 }
-
-declare global {
-  interface Window {
-    webkit?: {
-      messageHandlers: {
-        getContacts: {
-          postMessage: (body: unknown) => Promise<import('./bridge').GetContactsResponse>
-        }
-        searchContacts: {
-          postMessage: (body: SearchContactsRequest) => Promise<SearchContactsResponse>
-        }
-      }
-    }
-  }
-}
