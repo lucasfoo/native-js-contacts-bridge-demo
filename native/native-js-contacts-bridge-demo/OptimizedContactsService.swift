@@ -4,9 +4,8 @@ import os
 private let logger = Logger(subsystem: "native-js-contacts-bridge-demo", category: "optimized-contacts")
 
 class OptimizedContactsService {
-    private let store = CNContactStore()
-
     func requestAccess() async -> (granted: Bool, authMs: Double) {
+        let store = CNContactStore()
         let authStart = CFAbsoluteTimeGetCurrent()
         do {
             let granted = try await store.requestAccess(for: .contacts)
@@ -22,6 +21,7 @@ class OptimizedContactsService {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
+                    let store = CNContactStore()
                     let fetchStart = CFAbsoluteTimeGetCurrent()
                     let keys: [CNKeyDescriptor] = [
                         CNContactGivenNameKey as CNKeyDescriptor,
@@ -33,7 +33,7 @@ class OptimizedContactsService {
 
                     if let query = query, !query.isEmpty {
                         let predicate = CNContact.predicateForContacts(matchingName: query)
-                        let results = try self.store.unifiedContacts(matching: predicate, keysToFetch: keys)
+                        let results = try store.unifiedContacts(matching: predicate, keysToFetch: keys)
                         allContacts = results.map { contact in
                             [
                                 "givenName": contact.givenName,
@@ -43,7 +43,7 @@ class OptimizedContactsService {
                         }
                     } else {
                         let request = CNContactFetchRequest(keysToFetch: keys)
-                        try self.store.enumerateContacts(with: request) { contact, _ in
+                        try store.enumerateContacts(with: request) { contact, _ in
                             allContacts.append([
                                 "givenName": contact.givenName,
                                 "familyName": contact.familyName,
