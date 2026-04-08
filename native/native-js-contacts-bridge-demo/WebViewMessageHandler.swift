@@ -66,7 +66,7 @@ class OptimizedContactsMessageDelegate: MessageHandlerDelegate {
             guard granted else { return (nil as Any?, "Contacts access denied") }
 
             do {
-                let (contacts, total, fetchMs) = try await service.search(query: query, offset: offset, limit: limit)
+                let (contacts, hasMore, fetchMs) = try await service.search(query: query, offset: offset, limit: limit)
                 let totalMs = (CFAbsoluteTimeGetCurrent() - totalStart) * 1000
 
                 let timing: [String: Any] = [
@@ -76,7 +76,7 @@ class OptimizedContactsMessageDelegate: MessageHandlerDelegate {
                 ]
                 let result: [String: Any] = [
                     "contacts": contacts,
-                    "total": total,
+                    "hasMore": hasMore,
                     "timing": timing
                 ]
                 return (result, nil)
@@ -118,7 +118,7 @@ class StressTestMessageDelegate: MessageHandlerDelegate {
             guard granted else { return (nil as Any?, "Contacts access denied") }
 
             do {
-                let (created, generateMs) = try service.generate(count: count, prefix: prefix)
+                let (created, generateMs) = try await service.generate(count: count, prefix: prefix)
                 let totalMs = (CFAbsoluteTimeGetCurrent() - totalStart) * 1000
 
                 let timing: [String: Any] = [
@@ -148,7 +148,7 @@ class StressTestMessageDelegate: MessageHandlerDelegate {
             guard granted else { return (nil as Any?, "Contacts access denied") }
 
             do {
-                let (deleted, _) = try service.cleanup(prefix: prefix)
+                let (deleted, _) = try await service.cleanup(prefix: prefix)
                 let totalMs = (CFAbsoluteTimeGetCurrent() - totalStart) * 1000
 
                 let timing: [String: Any] = [

@@ -35,11 +35,13 @@ function ContactsPage() {
     const bridgeStart = performance.now()
     window.webkit!.messageHandlers.getContacts.postMessage("fetch").then((result) => {
       const bridgeMs = Math.round((performance.now() - bridgeStart) * 10) / 10
+      const bridgeOverheadMs = Math.round((bridgeMs - result.timing.totalNativeMs) * 10) / 10
+      const stateStart = performance.now()
       setContacts(result.contacts)
       setLoading(false)
       requestAnimationFrame(() => {
-        const renderMs = Math.round((performance.now() - bridgeStart - bridgeMs) * 10) / 10
-        setTiming({ ...result.timing, bridgeMs, renderMs })
+        const renderMs = Math.round((performance.now() - stateStart) * 10) / 10
+        setTiming({ ...result.timing, bridgeMs, bridgeOverheadMs, renderMs })
       })
     })
   }, [])
@@ -52,6 +54,7 @@ function ContactsPage() {
             <div>Native auth: {timing.authMs}ms</div>
             <div>Native fetch: {timing.fetchMs}ms</div>
             <div>Native total: {timing.totalNativeMs}ms</div>
+            <div>Bridge serialization: {timing.bridgeOverheadMs}ms</div>
             <div>Bridge round-trip: {timing.bridgeMs}ms</div>
             <div>React render: {timing.renderMs}ms</div>
             <div>{contacts.length} contacts</div>

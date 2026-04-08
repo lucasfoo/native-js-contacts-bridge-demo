@@ -2,18 +2,18 @@ import { useState } from 'react'
 import './stressTestBridge'
 
 const TEST_PREFIX = 'ZZTest'
-const DEFAULT_COUNT = 1000
+const COUNTS = [100, 250, 500, 1000] as const
 
 export default function StressTestControls() {
   const [status, setStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (count: number) => {
     setLoading(true)
     setStatus('Generating contacts...')
     try {
       const result = await window.webkit!.messageHandlers.generateContacts.postMessage({
-        count: DEFAULT_COUNT,
+        count,
         prefix: TEST_PREFIX,
       })
       setStatus(`Created ${result.created} contacts in ${result.timing.totalMs}ms`)
@@ -40,17 +40,23 @@ export default function StressTestControls() {
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 300 }}>
-        <button
-          onClick={handleGenerate}
-          disabled={loading}
-          style={{
-            padding: '12px 16px', fontSize: 16, borderRadius: 8,
-            border: 'none', background: '#34c759', color: 'white',
-            cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
-          }}
-        >
-          Generate {DEFAULT_COUNT} Test Contacts
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {COUNTS.map((count) => (
+            <button
+              key={count}
+              onClick={() => handleGenerate(count)}
+              disabled={loading}
+              style={{
+                padding: '12px 16px', fontSize: 16, borderRadius: 8,
+                border: 'none', background: '#34c759', color: 'white',
+                cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
+                flex: '1 1 auto',
+              }}
+            >
+              +{count}
+            </button>
+          ))}
+        </div>
         <button
           onClick={handleCleanup}
           disabled={loading}

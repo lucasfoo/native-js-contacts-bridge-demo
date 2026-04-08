@@ -8,7 +8,7 @@ export interface SearchContactsRequest {
 
 export interface SearchContactsResponse {
   contacts: Contact[]
-  total: number
+  hasMore: boolean
   timing: {
     authMs: number
     fetchMs: number

@@ -11,7 +11,7 @@ const DEBOUNCE_MS = 300
 
 function OptimizedContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([])
-  const [total, setTotal] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
   const [timing, setTiming] = useState<Timing | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -42,13 +42,15 @@ function OptimizedContactsPage() {
       setContacts([])
 
       const { result, bridgeMs } = await fetchPage(query, 0)
+      const bridgeOverheadMs = Math.round((bridgeMs - result.timing.totalNativeMs) * 10) / 10
+      const stateStart = performance.now()
       setContacts(result.contacts)
-      setTotal(result.total)
+      setHasMore(result.hasMore)
       setLoading(false)
 
       requestAnimationFrame(() => {
-        const renderMs = Math.round((performance.now() - bridgeMs) * 10) / 10
-        setTiming({ ...result.timing, bridgeMs, renderMs })
+        const renderMs = Math.round((performance.now() - stateStart) * 10) / 10
+        setTiming({ ...result.timing, bridgeMs, bridgeOverheadMs, renderMs })
       })
     }, initialLoadRef.current ? 0 : DEBOUNCE_MS)
     initialLoadRef.current = false
@@ -68,12 +70,12 @@ function OptimizedContactsPage() {
         const entry = entries[0]
         if (!entry.isIntersecting) return
         if (loadingMore || loading) return
-        if (contacts.length >= total) return
+        if (!hasMore) return
 
         setLoadingMore(true)
         const { result } = await fetchPage(currentQueryRef.current, contacts.length)
         setContacts((prev) => [...prev, ...result.contacts])
-        setTotal(result.total)
+        setHasMore(result.hasMore)
         setLoadingMore(false)
       },
       { rootMargin: '200px' }
@@ -81,7 +83,7 @@ function OptimizedContactsPage() {
 
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [contacts.length, total, loading, loadingMore, fetchPage])
+  }, [contacts.length, hasMore, loading, loadingMore, fetchPage])
 
   return (
     <div className="container">
@@ -91,9 +93,10 @@ function OptimizedContactsPage() {
             <div>Native auth: {timing.authMs}ms</div>
             <div>Native fetch: {timing.fetchMs}ms</div>
             <div>Native total: {timing.totalNativeMs}ms</div>
+            <div>Bridge serialization: {timing.bridgeOverheadMs}ms</div>
             <div>Bridge round-trip: {timing.bridgeMs}ms</div>
             <div>React render: {timing.renderMs}ms</div>
-            <div>Showing {contacts.length} of {total} contacts</div>
+            <div>Showing {contacts.length} contacts</div>
           </>
         ) : (
           <div>Loading…</div>

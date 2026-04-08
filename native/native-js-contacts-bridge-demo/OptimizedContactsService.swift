@@ -17,7 +17,7 @@ class OptimizedContactsService {
         }
     }
 
-    func search(query: String?, offset: Int, limit: Int) async throws -> (contacts: [[String: Any]], total: Int, fetchMs: Double) {
+    func search(query: String?, offset: Int, limit: Int) async throws -> (contacts: [[String: Any]], hasMore: Bool, fetchMs: Double) {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
@@ -29,36 +29,52 @@ class OptimizedContactsService {
                         CNContactPhoneNumbersKey as CNKeyDescriptor
                     ]
 
-                    var allContacts: [[String: Any]] = []
+                    let page: [[String: Any]]
+                    let hasMore: Bool
 
                     if let query = query, !query.isEmpty {
+                        // Search query: unifiedContacts has no pagination API, fetch all matches and slice
                         let predicate = CNContact.predicateForContacts(matchingName: query)
                         let results = try store.unifiedContacts(matching: predicate, keysToFetch: keys)
-                        allContacts = results.map { contact in
+                        let allContacts = results.map { contact in
                             [
                                 "givenName": contact.givenName,
                                 "familyName": contact.familyName,
                                 "phoneNumbers": contact.phoneNumbers.map { $0.value.stringValue }
-                            ]
+                            ] as [String: Any]
                         }
+                        let end = min(offset + limit, allContacts.count)
+                        page = offset < allContacts.count ? Array(allContacts[offset..<end]) : []
+                        hasMore = (offset + limit) < allContacts.count
                     } else {
+                        // No query: enumerate with early stopping — only visit offset + limit + 1 contacts
+                        var skipped = 0
+                        var collected: [[String: Any]] = []
+                        var foundMore = false
                         let request = CNContactFetchRequest(keysToFetch: keys)
-                        try store.enumerateContacts(with: request) { contact, _ in
-                            allContacts.append([
+                        try store.enumerateContacts(with: request) { contact, stop in
+                            if skipped < offset {
+                                skipped += 1
+                                return
+                            }
+                            if collected.count >= limit {
+                                foundMore = true
+                                stop.pointee = true
+                                return
+                            }
+                            collected.append([
                                 "givenName": contact.givenName,
                                 "familyName": contact.familyName,
                                 "phoneNumbers": contact.phoneNumbers.map { $0.value.stringValue }
                             ])
                         }
+                        page = collected
+                        hasMore = foundMore
                     }
 
-                    let total = allContacts.count
-                    let end = min(offset + limit, total)
-                    let page = offset < total ? Array(allContacts[offset..<end]) : []
-
                     let fetchMs = (CFAbsoluteTimeGetCurrent() - fetchStart) * 1000
-                    logger.info("Search query=\(query ?? "<all>") total=\(total) offset=\(offset) returned=\(page.count) in \(fetchMs, format: .fixed(precision: 1))ms")
-                    continuation.resume(returning: (page, total, fetchMs))
+                    logger.info("Search query=\(query ?? "<all>") offset=\(offset) returned=\(page.count) hasMore=\(hasMore) in \(fetchMs, format: .fixed(precision: 1))ms")
+                    continuation.resume(returning: (page, hasMore, fetchMs))
                 } catch {
                     continuation.resume(throwing: error)
                 }

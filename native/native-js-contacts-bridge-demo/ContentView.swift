@@ -2,14 +2,13 @@ import SwiftUI
 import WebKit
 
 struct WebView: UIViewRepresentable {
-    let url: URL
-
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         let handler = context.coordinator.handler
         for name in handler.allHandlerNames {
             config.userContentController.addScriptMessageHandler(
@@ -19,7 +18,12 @@ struct WebView: UIViewRepresentable {
             )
         }
         let webView = WKWebView(frame: .zero, configuration: config)
-        webView.load(URLRequest(url: url))
+
+        if let indexURL = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "WebApp") {
+            let webAppDir = indexURL.deletingLastPathComponent()
+            webView.loadFileURL(indexURL, allowingReadAccessTo: webAppDir)
+        }
+
         return webView
     }
 
@@ -39,7 +43,7 @@ struct WebView: UIViewRepresentable {
 
 struct ContentView: View {
     var body: some View {
-        WebView(url: URL(string: "http://localhost:5173")!)
+        WebView()
             .ignoresSafeArea()
     }
 }

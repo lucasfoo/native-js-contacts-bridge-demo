@@ -10,6 +10,7 @@ Demo project to display contacts in a React webview using WKWebView's native bri
 
 - **`/web`** - React + Vite + Cloudflare Workers app
 - **`/native`** - iOS SwiftUI app (Xcode project)
+- **`/scripts`** - Python utilities (test contact generation)
 
 ## Commands
 
@@ -21,29 +22,45 @@ npm run build      # TypeScript compile + Vite build
 npm run lint       # ESLint
 npm run preview    # Build and preview production bundle
 npm run deploy     # Build and deploy to Cloudflare Workers
+npm run cf-typegen # Generate Cloudflare Workers types
 ```
 
 ### iOS
 
 Open `/native/native-js-contacts-bridge-demo.xcodeproj` in Xcode. Build and run on simulator or device.
 
+### Updating Bundled Web App
+
+After making web changes, rebuild and copy into the iOS project:
+
+```bash
+cd web && npm run build && rm -rf ../native/WebApp && cp -r dist/client ../native/WebApp
+```
+
 ## Architecture
 
 ### Web Layer
-- React 19 SPA with Vite bundling
+- React 19 SPA with Vite bundling and HashRouter (Home, Contacts list, Contact detail pages)
+- Tailwind CSS with shadcn UI components and Geist font
+- Vite configured with `base: './'` for relative asset paths (required for local file:// loading)
 - Cloudflare Workers backend (`/web/worker/index.ts`) handles `/api/*` routes
-- Deployed as Cloudflare Pages with Workers for API
+- Can also be deployed as Cloudflare Pages with Workers for API
 
-### Native Layer (to be implemented)
-- SwiftUI app hosting WKWebView
-- WebKit message handlers for JS-to-native communication
-- Contacts framework integration for fetching device contacts
+### Native Layer
+- SwiftUI app hosting WKWebView (`ContentView.swift`)
+- **Web app is bundled locally** — built JS/CSS/HTML from `web/dist/client/` is copied to `native/native-js-contacts-bridge-demo/WebApp/` and loaded via `loadFileURL` (no server required)
+- `WKScriptMessageHandlerWithReply` with async delegate pattern (`WebViewMessageHandler.swift`)
+- `ContactsService.swift` — CNContactStore integration with off-main-thread fetching
+- `StressTestService.swift` — bulk contact generation/cleanup for load testing (batched in groups of 100)
 
-### Bridge Pattern (to be implemented)
-The native bridge will use `WKScriptMessageHandler` to expose native contacts to JS:
-1. JS calls `window.webkit.messageHandlers.<name>.postMessage()`
-2. Swift receives message, fetches contacts via CNContactStore
-3. Swift evaluates JS callback with serialized contact data
+### Bridge Pattern
+The native bridge uses `WKScriptMessageHandlerWithReply` for reply-based async communication:
+1. JS calls `window.webkit.messageHandlers.<name>.postMessage(payload)` and awaits the reply
+2. Swift receives message, dispatches to the appropriate delegate, and returns the result
+3. Three bridge endpoints:
+   - `getContacts` — fetches device contacts with auth + fetch timing
+   - `generateContacts` — creates test contacts (count, prefix params)
+   - `cleanupContacts` — removes test contacts by prefix
 
 ## iOS Threading
 
@@ -51,8 +68,8 @@ CNContactStore methods (`enumerateContacts`, `execute`) must NOT run on the main
 
 ## Performance Debugging Focus
 
-When implementing, include timing metrics for:
-- Time to request contacts from native
-- Serialization/deserialization time
-- Render time in React
-- Display these metrics in the webview UI
+Timing metrics are captured and displayed in the webview UI:
+- Native auth time, native fetch time, native total time
+- Bridge round-trip time
+- React render time
+- Filter time + result count

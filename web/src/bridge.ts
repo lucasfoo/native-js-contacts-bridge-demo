@@ -9,6 +9,7 @@ export interface Timing {
   fetchMs: number
   totalNativeMs: number
   bridgeMs?: number
+  bridgeOverheadMs?: number
   renderMs?: number
 }
 

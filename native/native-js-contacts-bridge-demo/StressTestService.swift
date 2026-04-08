@@ -116,72 +116,87 @@ class StressTestService {
         }
     }
 
-    func generate(count: Int, prefix: String) throws -> (created: Int, generateMs: Double) {
-        let store = CNContactStore()
-        let genStart = CFAbsoluteTimeGetCurrent()
-        let batchSize = 100
-        var created = 0
+    func generate(count: Int, prefix: String) async throws -> (created: Int, generateMs: Double) {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let store = CNContactStore()
+                    let genStart = CFAbsoluteTimeGetCurrent()
+                    let batchSize = 100
+                    var created = 0
 
-        for batchStart in stride(from: 0, to: count, by: batchSize) {
-            let saveRequest = CNSaveRequest()
-            let batchEnd = min(batchStart + batchSize, count)
-            for _ in batchStart..<batchEnd {
-                let contact = CNMutableContact()
-                contact.givenName = givenNames.randomElement()!
-                contact.note = prefix
-                contact.familyName = familyNames.randomElement()!
+                    for batchStart in stride(from: 0, to: count, by: batchSize) {
+                        let saveRequest = CNSaveRequest()
+                        let batchEnd = min(batchStart + batchSize, count)
+                        for _ in batchStart..<batchEnd {
+                            let contact = CNMutableContact()
+                            contact.givenName = "\(prefix) \(givenNames.randomElement()!)"
+                            contact.familyName = familyNames.randomElement()!
 
-                let phoneCount = [1, 1, 1, 1, 1, 1, 2, 2, 2, 3].randomElement()!
-                var phones: [CNLabeledValue<CNPhoneNumber>] = []
-                for _ in 0..<phoneCount {
-                    let number = generatePhoneNumber()
-                    phones.append(CNLabeledValue(
-                        label: CNLabelPhoneNumberMobile,
-                        value: CNPhoneNumber(stringValue: number)
-                    ))
+                            let phoneCount = [1, 1, 1, 1, 1, 1, 2, 2, 2, 3].randomElement()!
+                            var phones: [CNLabeledValue<CNPhoneNumber>] = []
+                            for _ in 0..<phoneCount {
+                                let number = generatePhoneNumber()
+                                phones.append(CNLabeledValue(
+                                    label: CNLabelPhoneNumberMobile,
+                                    value: CNPhoneNumber(stringValue: number)
+                                ))
+                            }
+                            contact.phoneNumbers = phones
+                            saveRequest.add(contact, toContainerWithIdentifier: nil)
+                        }
+                        try store.execute(saveRequest)
+                        created = batchEnd
+                    }
+
+                    let generateMs = (CFAbsoluteTimeGetCurrent() - genStart) * 1000
+                    logger.info("Generated \(created) contacts in \(generateMs, format: .fixed(precision: 1))ms")
+                    continuation.resume(returning: (created, generateMs))
+                } catch {
+                    continuation.resume(throwing: error)
                 }
-                contact.phoneNumbers = phones
-                saveRequest.add(contact, toContainerWithIdentifier: nil)
             }
-            try store.execute(saveRequest)
-            created = batchEnd
         }
-
-        let generateMs = (CFAbsoluteTimeGetCurrent() - genStart) * 1000
-        logger.info("Generated \(created) contacts in \(generateMs, format: .fixed(precision: 1))ms")
-        return (created, generateMs)
     }
 
-    func cleanup(prefix: String) throws -> (deleted: Int, cleanupMs: Double) {
-        let store = CNContactStore()
-        let cleanupStart = CFAbsoluteTimeGetCurrent()
-        let keys: [CNKeyDescriptor] = [
-            CNContactNoteKey as CNKeyDescriptor,
-            CNContactIdentifierKey as CNKeyDescriptor
-        ]
-        let request = CNContactFetchRequest(keysToFetch: keys)
-        var toDelete: [CNContact] = []
+    func cleanup(prefix: String) async throws -> (deleted: Int, cleanupMs: Double) {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let store = CNContactStore()
+                    let cleanupStart = CFAbsoluteTimeGetCurrent()
+                    let keys: [CNKeyDescriptor] = [
+                        CNContactIdentifierKey as CNKeyDescriptor,
+                        CNContactGivenNameKey as CNKeyDescriptor
+                    ]
+                    let request = CNContactFetchRequest(keysToFetch: keys)
+                    var toDelete: [CNContact] = []
 
-        try store.enumerateContacts(with: request) { contact, _ in
-            if contact.note == prefix {
-                toDelete.append(contact)
+                    try store.enumerateContacts(with: request) { contact, _ in
+                        if contact.givenName.hasPrefix(prefix) {
+                            toDelete.append(contact)
+                        }
+                    }
+
+                    let batchSize = 100
+                    var deleted = 0
+                    for batchStart in stride(from: 0, to: toDelete.count, by: batchSize) {
+                        let saveRequest = CNSaveRequest()
+                        let batchEnd = min(batchStart + batchSize, toDelete.count)
+                        for i in batchStart..<batchEnd {
+                            saveRequest.delete(toDelete[i].mutableCopy() as! CNMutableContact)
+                        }
+                        try store.execute(saveRequest)
+                        deleted = batchEnd
+                    }
+
+                    let cleanupMs = (CFAbsoluteTimeGetCurrent() - cleanupStart) * 1000
+                    logger.info("Cleaned up \(deleted) contacts in \(cleanupMs, format: .fixed(precision: 1))ms")
+                    continuation.resume(returning: (deleted, cleanupMs))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
             }
         }
-
-        let batchSize = 100
-        var deleted = 0
-        for batchStart in stride(from: 0, to: toDelete.count, by: batchSize) {
-            let saveRequest = CNSaveRequest()
-            let batchEnd = min(batchStart + batchSize, toDelete.count)
-            for i in batchStart..<batchEnd {
-                saveRequest.delete(toDelete[i].mutableCopy() as! CNMutableContact)
-            }
-            try store.execute(saveRequest)
-            deleted = batchEnd
-        }
-
-        let cleanupMs = (CFAbsoluteTimeGetCurrent() - cleanupStart) * 1000
-        logger.info("Cleaned up \(deleted) contacts in \(cleanupMs, format: .fixed(precision: 1))ms")
-        return (deleted, cleanupMs)
     }
 }

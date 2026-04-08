@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from 'react-router'
+import { HashRouter, Routes, Route, Link, useLocation, useNavigate } from 'react-router'
 import ContactsPage from './ContactsPage'
 import ContactDetailPage from './ContactDetailPage'
 import StressTestControls from './StressTestControls'
@@ -40,7 +40,7 @@ function Home() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
@@ -49,7 +49,7 @@ function App() {
         <Route path="/contacts-optimized" element={<OptimizedContactsPage />} />
         <Route path="/contacts-optimized/:index" element={<ContactDetailPage />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 
